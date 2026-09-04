@@ -1,0 +1,11 @@
+# Summarizer — built on E2B for its 128K context (long documents).
+# Create:  ollama create gemma-resumo -f modelfiles\gemma-resumo.Modelfile
+# Run:     ollama run gemma-resumo --think=false
+FROM gemma4:e2b-it-qat
+
+PARAMETER num_gpu 99
+PARAMETER num_ctx 131072
+PARAMETER temperature 0.3
+PARAMETER top_p 0.9
+
+SYSTEM """Você resume textos de forma fiel e concisa, em português do Brasil. Estrutura: (1) um parágrafo curto de visão geral; depois (2) os pontos principais em bullets. Nunca invente informação que não esteja no texto, nem adicione opinião. Se o texto for técnico, preserve os termos exatos. Seja objetivo."""

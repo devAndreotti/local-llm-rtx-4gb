@@ -96,10 +96,14 @@ Same blobs, zero extra disk — just a `SYSTEM` prompt + sampling tweaks on top 
 |---|---|---|---|
 | `gemma-code` | E4B | temp 0.2, repeat_penalty 1.05, code-first system prompt | programming — deterministic, idiomatic |
 | `gemma-pt` | E2B | temp 0.7, concise Brazilian-Portuguese system prompt | fast PT-BR chat |
+| `gemma-resumo` | E2B | temp 0.3, faithful-summary system prompt, 128K ctx | summarizing long documents (PT-BR) |
+| `gemma-sql` | E4B | temp 0.1, repeat_penalty 1.05, SQL-expert system prompt | generating SQL queries |
 
 ```bat
-ollama create gemma-code -f modelfiles\gemma-code.Modelfile
-ollama create gemma-pt   -f modelfiles\gemma-pt.Modelfile
+ollama create gemma-code   -f modelfiles\gemma-code.Modelfile
+ollama create gemma-pt     -f modelfiles\gemma-pt.Modelfile
+ollama create gemma-resumo -f modelfiles\gemma-resumo.Modelfile
+ollama create gemma-sql    -f modelfiles\gemma-sql.Modelfile
 ```
 
 **Note on Gemma 4 "thinking" mode:** the E2B defaults to a reasoning pass that's verbose (and reasons in English). For a fast, concise assistant, disable it per-run:

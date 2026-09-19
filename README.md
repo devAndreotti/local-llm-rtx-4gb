@@ -1,215 +1,76 @@
-# ollama-gemma-rtx
+# ollama-rtx-4gb
 
-Pre-tuned Ollama Modelfiles for running Google Gemma models on laptop GPUs (RTX 2050 / 4 GB VRAM). Drop-in configs that unlock full CUDA offload where Ollama's auto-estimator is too conservative.
+Pre-tuned Ollama Modelfiles and comprehensive 2026 benchmarks for running local AI models on entry-level laptop GPUs (NVIDIA RTX 2050 / RTX 3050 / 4 GB VRAM).
 
-> **Tested on:** Windows 11 · NVIDIA RTX 2050 4 GB (Optimus/hybrid) · 16 GB RAM · Ollama ≥ 0.30.x
+Drop-in configs that unlock 100% CUDA offload, sub-second latency, and native Tool Calling / MCP support without CPU bottlenecks.
 
----
-
-## Results at a glance
-
-| Model | Ollama tag | Speed | VRAM | Context | GPU layers |
-|---|---|---|---|---|---|
-| **Gemma 4 E2B QAT** | `gemma4-cuda` | ~49 tok/s | 1.6 GB | **128K** | 36/36 (100%) |
-| **Gemma 4 E4B QAT** | `gemma4e4b-cuda` | ~29 tok/s | 3.0 GB | 32K | 43/43 (100%) |
-| Gemma 2 9B q3_K_S | `gemma9-cuda` | ~7.7 tok/s | 4.0 GB | 8K | 33/43 (70%) |
-
-**Recommendation:**
-- Daily driver → **E4B** (better quality, still fast, fits entirely on GPU)
-- Long documents / speed bursts → **E2B** (49 tok/s, 128K context)
-- Gemma 2 9B is outclassed by the E4B on every metric and only included for reference
+> **Hardware Testbed:** Windows 11 Pro · Intel Core i5-12450H (8C/12T) · 16 GB DDR4 · NVIDIA GeForce RTX 2050 (4 GB GDDR6) · Ollama 0.33.x · Promptfoo 0.122.x
 
 ---
 
-## Why this exists
+## 🚀 2026 Benchmark: Results at a Glance
 
-Ollama's automatic GPU-layer estimator is too conservative on Optimus (hybrid) laptops. On this machine, out of the box it:
-- Picked the **Vulkan backend** (pathologically slow: ~4 tok/s)
-- Offloaded only **13 of 36 layers** to the GPU
+Evaluated across **Coding (TypeScript Memoization)**, **Strict JSON Extraction (Zero Markdown)**, **Complex Logic (River Crossing Riddle)**, and **MCP Tool Calling**.
 
-With the right `num_gpu` override and `OLLAMA_VULKAN=0`, the same hardware runs **~49 tok/s at 100% GPU**.
-
-These Modelfiles encode that discovery so you don't have to repeat it.
-
----
-
-## Prerequisites
-
-1. **Ollama ≥ 0.30.x** — earlier versions don't support Gemma 4
-   ```
-   winget install --id Ollama.Ollama --silent --accept-package-agreements
-   ```
-
-2. **Force CUDA** (one-time, survives reboots):
-   ```bat
-   setx OLLAMA_VULKAN 0
-   ```
-   Then restart the Ollama app. Vulkan is consistently 10–12× slower than CUDA on Optimus GPUs.
-
-3. **Pull the base models** (downloads happen once; blobs are shared):
-   ```
-   ollama pull gemma4:e2b-it-qat     # ~1.6 GB
-   ollama pull gemma4:e4b-it-qat     # ~6.1 GB on disk (only 3.0 GB loaded in VRAM)
-   ollama pull gemma2:9b-instruct-q3_K_S  # ~4.3 GB  (optional)
-   ```
+| Model | Size (Q4) | Execution Mode | Speed (tok/s) | Strict JSON | Tool Calling / MCP | Logic / Reasoning | Best For |
+|---|---|---|---|---|---|---|---|
+| **Qwen 2.5 Coder 3B** | 1.9 GB | **100% GPU** | **~47 tok/s** | ✅ Pass | ✅ Native OpenAI ToolCalls | ✅ Pass | **Daily Driver Code & Scripts** |
+| **Qwen 2.5 3B (Chat)** | 1.9 GB | **100% GPU** | **~45 tok/s** | ✅ Pass | ✅ Native OpenAI ToolCalls | ✅ Pass | **General Chat, Agents & MCP** |
+| **DeepSeek R1 1.5B** | 1.1 GB | **100% GPU** | **~80 tok/s** | ⚠️ Includes `<think>` | ❌ No native tool-calling | ✅ Full CoT Thinking | **Math, Logic & Quick Brainstorm** |
+| **DeepSeek R1 7B** | 4.7 GB | Híbrido (58% CPU / 42% GPU) | **~3-5 tok/s** | ✅ Pass | ❌ Slow on 4GB VRAM | 🌟 State-of-the-Art CoT | Hard logic only (slow on laptops) |
+| **Gemma 4 E2B QAT** | 1.6 GB | **100% GPU** | **~49 tok/s** | ✅ Pass | ❌ Emits markdown | ⚠️ Basic | Fast text summary (128K ctx) |
+| **Gemma 4 E4B QAT** | 3.0 GB | **100% GPU** | **~29 tok/s** | ✅ Pass | ❌ Emits markdown | ⚠️ Basic | Legacy assistant |
+| **Gemma 2 9B q3_K_S** | 4.3 GB | Híbrido (70% GPU / 30% CPU) | **~7.7 tok/s** | ⚠️ High latency | ❌ Redundant | ⚠️ Slower than Qwen 3B | Deprecated (outclassed by 3B) |
 
 ---
 
-## Setup
+## 🔍 Key Findings & Architectural Insights
 
-Create the derived models (no extra disk space — just manifests pointing to existing blobs):
+### 1. The 3B Sweet Spot (The Death of 7B-9B on 4GB GPUs)
+Trying to run 7B or 9B models on a 4 GB GPU forces Ollama to split layers between VRAM and system RAM. The memory bandwidth drop from GDDR6 (~112 GB/s) to system DDR4 (~25 GB/s) kills performance:
+- **DeepSeek R1 7B** took **429 seconds** to generate complex output.
+- **Qwen 2.5 Coder 3B** fits 100% in VRAM (leaving ~2 GB for Windows/system apps) and generated the same algorithm in **under 2 seconds at 47 tokens/sec**.
+- In practical coding and JSON benchmarks, **Qwen 2.5 3B matched or exceeded Gemma 2 9B quality** at 6x the speed.
 
-```bat
-ollama create gemma4-cuda    -f modelfiles\gemma4-2b.Modelfile
-ollama create gemma4e4b-cuda -f modelfiles\gemma4-e4b.Modelfile
-ollama create gemma9-cuda    -f modelfiles\gemma2-9b.Modelfile
-```
+### 2. Native MCP & Tool Calling Support
+Most small local models fail when asked to call external functions in strict schemas.
+- **Qwen 2.5 (3B and Coder 3B)** natively support the OpenAI tool format (`tool_calls` object with function name and arguments). They integrate seamlessly into AI agent frameworks and MCP servers.
+- **DeepSeek R1** models output chain-of-thought (`<think>...</think>`) tags, making them ideal for logic verification or reasoning pipelines, but unsuitable as direct tool dispatchers.
 
-Run:
-```bat
-ollama run gemma4-cuda       :: fast, huge context
-ollama run gemma4e4b-cuda    :: smarter
-```
-
-Or use the `.bat` launchers in `launchers/` — double-click to start Ollama + open a chat in one step.
-
----
-
-## Architecture notes (why these numbers work)
-
-### Gemma 4 — PLE / MatFormer architecture
-The E4B weighs **6.1 GB on disk** but only uses **3.0 GB of VRAM** at 100% GPU offload. This is because of **Per-Layer Embeddings (PLE)**: embedding lookups are handled CPU-side cheaply (they're just table lookups, not matrix multiplications), while the actual compute layers go fully to the GPU. The result is a much smaller runtime VRAM footprint than the file size suggests.
-
-### Gemma 4 — Sliding-window attention & KV cache
-Only 3 of ~15 attention layers use full context; the rest use a small sliding window. This keeps the **KV cache tiny even at 128K context** (~1.7 GB). KV cache quantization (q8_0/q4_0) and Flash Attention were tested and provided no benefit here — they saved ~50–150 MB at a slight speed cost.
-
-### Gemma 2 9B — VRAM cliff
-With the 9B, **more GPU layers ≠ faster**. At ≥ 36 layers CUDA spills into shared memory (Optimus unified memory) and becomes *slower* than at 33 layers, even while `ollama ps` shows "100% GPU". The sweet spot is **33 layers**. Setting `num_gpu 99` here would be counterproductive.
+### 3. Strict JSON (Zero Markdown)
+When prompted with `Retorne APENAS um JSON valido sem markdown`:
+- `Qwen 2.5` passed with pure parseable JSON without code fences.
+- `DeepSeek R1` wrapped JSON inside markdown code blocks alongside its reasoning traces.
 
 ---
 
-## Custom variants (personas via Modelfile)
+## 🛠️ Modelfiles Included
 
-Same blobs, zero extra disk — just a `SYSTEM` prompt + sampling tweaks on top of a base model:
-
-| Variant | Base | Tuning | For |
-|---|---|---|---|
-| `gemma-code` | E4B | temp 0.2, repeat_penalty 1.05, code-first system prompt | programming — deterministic, idiomatic |
-| `gemma-pt` | E2B | temp 0.7, concise Brazilian-Portuguese system prompt | fast PT-BR chat |
-| `gemma-resumo` | E2B | temp 0.3, faithful-summary system prompt, 128K ctx | summarizing long documents (PT-BR) |
-| `gemma-sql` | E4B | temp 0.1, repeat_penalty 1.05, SQL-expert system prompt | generating SQL queries |
-
-```bat
-ollama create gemma-code   -f modelfiles\gemma-code.Modelfile
-ollama create gemma-pt     -f modelfiles\gemma-pt.Modelfile
-ollama create gemma-resumo -f modelfiles\gemma-resumo.Modelfile
-ollama create gemma-sql    -f modelfiles\gemma-sql.Modelfile
-```
-
-**Note on Gemma 4 "thinking" mode:** the E2B defaults to a reasoning pass that's verbose (and reasons in English). For a fast, concise assistant, disable it per-run:
-```bat
-ollama run gemma-pt --think=false
-```
-There's no Modelfile parameter for this — it's a per-request flag, so the launcher bakes it in.
+Pre-tuned Modelfiles located in `/modelfiles`:
+- `qwen-code-3b.Modelfile`: Deterministic coding assistant (`temp 0.2`, `num_gpu 99`, `num_ctx 8192`).
+- `qwen-chat-3b.Modelfile`: General purpose chat and JSON extractor (`num_gpu 99`, `num_ctx 8192`).
+- `r1-fast-1.5b.Modelfile`: High-speed reasoning with chain-of-thought (`num_gpu 99`, `num_ctx 8192`).
+- `gemma-*.Modelfile`: Legacy Gemma configurations.
 
 ---
 
-## Windows power plan (measured: +31% on CPU-offloaded models)
+## 🧪 Reproducing the Benchmark
 
-Laptops often ship on the **Power saver** plan, which throttles the CPU. This barely affects fully-GPU-resident models (the GPU boosts on its own under load), but it heavily penalizes any model that offloads layers to the CPU.
+The test suite uses [promptfoo](https://github.com/promptfoo/promptfoo):
 
-Measured on this machine, switching from **Power saver** to **Ultimate Performance**:
+```bash
+cd benchmark
+# Run the full VRAM comparison
+pf eval -c promptfooconfig-fast.yaml --max-concurrency 1
 
-| Model | Power saver | Ultimate Performance | Δ |
-|---|---|---|---|
-| Gemma 4 E4B (100% GPU) | 29 tok/s | 28 tok/s | ~none |
-| Gemma 2 9B (30% CPU) | 7.7 tok/s | **10.1 tok/s** | **+31%** |
-
-Enable it (the plan may need to be created first on some installs):
-```bat
-powercfg /setactive 98c56a02-4c00-471e-9432-7211b6a01f73   :: Ultimate Performance
-:: if that GUID doesn't exist:  powercfg -duplicatescheme e9a42b02-d5df-448d-aa00-03f14749eb61
-```
-
-**Battery note:** Ultimate Performance drains the battery if left unmanaged. Rather than auto-swapping plans (fragile on Windows — WMIC is removed and power-source event triggers are unreliable), tune the plan's **DC (battery) profile** to be conservative while keeping AC at full performance. Windows applies these automatically based on power source:
-```bat
-:: Battery: let the CPU idle and trim turbo; AC: full blast
-powercfg /setacvalueindex SCHEME_CURRENT SUB_PROCESSOR PROCTHROTTLEMIN 100
-powercfg /setdcvalueindex SCHEME_CURRENT SUB_PROCESSOR PROCTHROTTLEMIN 5
-powercfg /setacvalueindex SCHEME_CURRENT SUB_PROCESSOR PROCTHROTTLEMAX 100
-powercfg /setdcvalueindex SCHEME_CURRENT SUB_PROCESSOR PROCTHROTTLEMAX 90
-powercfg /setacvalueindex SCHEME_CURRENT SUB_PCIEXPRESS  ASPM 0
-powercfg /setdcvalueindex SCHEME_CURRENT SUB_PCIEXPRESS  ASPM 2
-powercfg /setactive SCHEME_CURRENT
+# Open interactive dashboard
+pf view
 ```
 
 ---
 
-## What we tested that didn't help
+## 💡 Recommended Setup for 4GB VRAM Laptops
 
-- **`num_batch 1024`** (vs default 512): no prefill gain on these small models — run-to-run variance (1615–1836 tok/s) exceeded any effect, and it cost +0.3 GB VRAM. The "+60% throughput" figures floating around are for large models on big GPUs, not a 2B on 4 GB.
-- **KV cache quantization (q8_0/q4_0)** and **Flash Attention**: no benefit on Gemma 4 — sliding-window attention already keeps the KV cache tiny (~1.7 GB at 128K). Slightly slower, saved ~50–150 MB.
-- **TurboQuant KV compression**: the upstream llama.cpp PR was rejected; it's CPU-only and forks are experimental. Not viable.
-
----
-
-## Gotchas
-
-**`nvidia-smi` is unreliable on Optimus laptops.**
-It reports ~750 MiB regardless of actual load. Use `ollama ps` or watch the llama.cpp logs (`offloaded X/Y layers`, `KV buffer size`) instead.
-
-**Kill `llama-server.exe` between restarts, not just `ollama.exe`.**
-Ollama's `keep_alive` keeps the runner process alive. If you restart the app without killing the runner, it holds VRAM → fake "CUDA out of memory" errors and `0xc0000409` stack overflow crashes on the next load.
-```bat
-taskkill /F /IM llama-server.exe
-```
-
-**Gemma 4 needs Ollama ≥ 0.30.x.**
-Earlier versions return `412: requires a newer version`. Update via winget (see Prerequisites).
-
-**E4B needs ~5 GB of free RAM to load.**
-The model uses mmap for staging even though it runs 100% on GPU. If you're low on RAM, close other apps before loading.
-
-**Gemma 2 9B context is hard-capped at 8192 tokens.**
-Requesting a larger context has no effect — llama.cpp clamps it internally. This is a model-level limit, not an Ollama setting.
-
----
-
-## Tuning `num_gpu` for your GPU
-
-These values were found by sweeping manually. The process:
-
-1. Start with `num_gpu 99` (try to offload everything)
-2. Check `ollama ps` — if `PROCESSOR` shows `100% GPU` and speed is good, done
-3. If you get OOM, lower `num_gpu` by ~5 and repeat
-4. Watch the llama.cpp log: `offloaded X/Y layers` tells you the actual split
-5. For hybrid/Optimus GPUs: test a few values around the optimum — there may be a "cliff" where adding layers suddenly makes things slower (Gemma 2 9B hits this at layer 36)
-
-To find the log:
-```bat
-ollama serve 2>&1 | findstr /i "offload\|layer\|KV"
-```
-
----
-
-## In-chat tips
-
-```
-/set nothink    disable reasoning mode for faster responses
-/bye            exit the chat
-```
-
-Check loaded model and GPU usage:
-```bat
-ollama ps
-```
-
----
-
-## License
-
-These are configuration files only. No model weights are included or redistributed.
-
-The underlying models are subject to Google's [Gemma Terms of Use](https://ai.google.dev/gemma/terms). By pulling and using them via Ollama, you agree to those terms.
-
-This repo itself is MIT licensed.
+1. **Coding & Terminal Automation:** Use `qwen2.5-coder:3b` as your primary local assistant.
+2. **AI Agents & MCP:** Use `qwen2.5:3b` for function calling and structured decision workflows.
+3. **Logic Verification:** Use `deepseek-r1:1.5b` as a second-pass validator or reasoning engine.

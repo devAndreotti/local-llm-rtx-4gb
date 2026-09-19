@@ -1,0 +1,62 @@
+description: 'Benchmark RTX 2050 4GB: Comparativo de Modelos Locais Ollama'
+
+prompts:
+  - '{{prompt}}'
+
+providers:
+  - id: 'ollama:chat:qwen2.5-coder:3b'
+    label: 'Qwen 2.5 Coder 3B'
+  - id: 'ollama:chat:qwen2.5:3b'
+    label: 'Qwen 2.5 3B'
+  - id: 'ollama:chat:deepseek-r1:1.5b'
+    label: 'DeepSeek R1 1.5B'
+  - id: 'ollama:chat:deepseek-r1:7b'
+    label: 'DeepSeek R1 7B'
+  - id: 'ollama:chat:gemma:2b'
+    label: 'Gemma 2B'
+  - id: 'ollama:chat:gemma4:e4b-it-qat'
+    label: 'Gemma 4 E4B QAT'
+  - id: 'ollama:chat:gemma:9b'
+    label: 'Gemma 2 9B'
+
+defaultTest:
+  options:
+    provider:
+      config:
+        temperature: 0.1
+
+tests:
+  - description: '1. Codigo Deterministico (Algoritmo Fibonacci Memoizado em TypeScript)'
+    vars:
+      prompt: 'Implemente uma funcao em TypeScript para calcular o n-esimo numero de Fibonacci usando memoizacao simples. Retorne apenas o codigo com tipagem estrita.'
+    assert:
+      - type: javascript
+        value: 'output.includes("function") || output.includes("const")'
+      - type: javascript
+        value: 'output.includes("number")'
+
+  - description: '2. JSON Estrito (Zero Markdown ou Delimitadores)'
+    vars:
+      prompt: 'Retorne APENAS um objeto JSON valido sem crases markdown ou texto extra. Dados: paciente "Carlos", idade 42, glicose 105, pressao "12/8". Chaves: nome (string), idade (number), exames (objeto com glicose e pressao).'
+    assert:
+      - type: is-json
+      - type: javascript
+        value: '!output.includes("```")'
+
+  - description: '3. Raciocinio Logico (Charada do Rio)'
+    vars:
+      prompt: 'Um homem precisa levar um lobo, uma cabra e um repolho atraves de um rio. O barco so cabe ele e mais um. Se ficarem sozinhos, o lobo come a cabra e a cabra come o repolho. Qual a sequencia exata de viagens?'
+    assert:
+      - type: icontains
+        value: 'cabra'
+      - type: icontains
+        value: 'lobo'
+
+  - description: '4. Tool Calling / Chamada de Funcao MCP'
+    vars:
+      prompt: 'Voce tem acesso a ferramenta "consultar_saldo(conta: string)". O usuario pede: "Qual o saldo da conta CC-9982?". Responda estruturado chamando a funcao.'
+    assert:
+      - type: icontains
+        value: 'consultar_saldo'
+      - type: icontains
+        value: 'CC-9982'

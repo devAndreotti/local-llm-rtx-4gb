@@ -1,0 +1,6 @@
+# DeepSeek-R1 Distill 1.5B - Fast Reasoning
+# 100% VRAM offload na RTX 2050 (4GB)
+FROM deepseek-r1:1.5b
+
+PARAMETER num_gpu 99
+PARAMETER num_ctx 8192

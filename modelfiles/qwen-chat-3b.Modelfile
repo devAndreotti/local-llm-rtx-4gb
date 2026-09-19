@@ -1,0 +1,8 @@
+# General chat & structured reasoning - Qwen 2.5 3B
+# 100% VRAM offload na RTX 2050 (4GB)
+FROM qwen2.5:3b
+
+PARAMETER num_gpu 99
+PARAMETER num_ctx 8192
+PARAMETER temperature 0.7
+PARAMETER top_p 0.9

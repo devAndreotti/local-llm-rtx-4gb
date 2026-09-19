@@ -1,0 +1,50 @@
+description: 'Benchmark RTX 2050 4GB: Comparativo Real Full-VRAM'
+
+prompts:
+  - '{{prompt}}'
+
+providers:
+  - id: 'ollama:chat:qwen2.5-coder:3b'
+    label: 'Qwen 2.5 Coder 3B'
+  - id: 'ollama:chat:qwen2.5:3b'
+    label: 'Qwen 2.5 3B'
+  - id: 'ollama:chat:deepseek-r1:1.5b'
+    label: 'DeepSeek R1 1.5B'
+  - id: 'ollama:chat:gemma:2b'
+    label: 'Gemma 2B'
+
+defaultTest:
+  options:
+    provider:
+      config:
+        temperature: 0.1
+
+tests:
+  - description: '1. Codigo Deterministico (Fibonacci TypeScript)'
+    vars:
+      prompt: 'Implemente uma funcao em TypeScript para calcular o n-esimo numero de Fibonacci usando memoizacao simples. Retorne apenas o codigo com tipagem estrita.'
+    assert:
+      - type: javascript
+        value: 'output.includes("function") || output.includes("const")'
+
+  - description: '2. JSON Estrito (Zero Markdown)'
+    vars:
+      prompt: 'Retorne APENAS um objeto JSON valido sem crases markdown ou texto extra. Dados: paciente "Carlos", idade 42, exames: glicose 105.'
+    assert:
+      - type: is-json
+      - type: javascript
+        value: '!output.includes("```")'
+
+  - description: '3. Raciocinio Logico (Charada do Rio)'
+    vars:
+      prompt: 'Um homem precisa levar um lobo, uma cabra e um repolho atraves de um rio. O barco so cabe ele e mais um. Se ficarem sozinhos, o lobo come a cabra e a cabra come o repolho. Qual a sequencia exata de viagens?'
+    assert:
+      - type: icontains
+        value: 'cabra'
+
+  - description: '4. Tool Calling / Intencao MCP'
+    vars:
+      prompt: 'Voce tem acesso a ferramenta "consultar_saldo(conta: string)". O usuario pede: "Qual o saldo da conta CC-9982?". Responda estruturado chamando a funcao.'
+    assert:
+      - type: icontains
+        value: 'consultar_saldo'

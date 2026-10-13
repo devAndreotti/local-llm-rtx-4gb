@@ -1,4 +1,4 @@
-# ollama-rtx-4gb
+# local-llm-rtx-4gb
 
 Pre-tuned Ollama Modelfiles and comprehensive 2026 benchmarks for running local AI models on entry-level laptop GPUs (NVIDIA RTX 2050 / RTX 3050 / 4 GB VRAM).
 
